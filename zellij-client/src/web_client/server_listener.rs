@@ -284,7 +284,17 @@ pub fn zellij_server_listener(
                             // Subscribe-only messages — not relevant for web clients
                             Some(ServerToClientMsg::PaneRenderUpdate { .. }) => {},
                             Some(ServerToClientMsg::SubscribedPaneClosed { .. }) => {},
-                            Some(ServerToClientMsg::EmitNestedSessionFrame { .. }) => {},
+                            Some(ServerToClientMsg::EmitNestedSessionFrame { payload_bytes }) => {
+                                // Forward nested-session frames (e.g. FocusHost) to the
+                                // client so that a host Zellij session the remote client
+                                // runs inside can act on them. The frame is plain ASCII
+                                // (DCS + base64), which terminals ignore if unsupported.
+                                let frame = zellij_utils::nested_session::encode_frame_from_payload(
+                                    &payload_bytes,
+                                );
+                                client_connection_bus
+                                    .send_stdout(String::from_utf8_lossy(&frame).into_owned());
+                            },
                             Some(ServerToClientMsg::HostProgramStatus { .. }) => {},
                             Some(ServerToClientMsg::SessionAttention { .. }) => {},
                             Some(ServerToClientMsg::SessionPreview { .. }) => {},
